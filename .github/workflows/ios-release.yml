@@ -26,15 +26,18 @@ jobs:
           echo "APPLE_APP_SPECIFIC_PASSWORD=${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}" >> .env
       - name: Install certificate
         run: |
-          echo "${{ secrets.IOS_CERTIFICATE }}" | base64 --decode > certificate.p12
+          echo "${{ secrets.IOS_CERTIFICATE }}" | base64 -D > certificate.p12
           security create-keychain -p "" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
           security import certificate.p12 -k build.keychain -P "" -T /usr/bin/codesign
-          security list-keychains -s build.keychain
+          security set-keychain-settings -lut 21600 build.keychain
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" build.keychain
 
       - name: Install provisioning profile
         run: |
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo "${{ secrets.IOS_PROVISIONING_PROFILE }}" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
+          echo "${{ secrets.IOS_PROVISIONING_PROFILE }}" | base64 -D > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
 
       - name: Install dependencies
         run: flutter pub get
