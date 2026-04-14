@@ -352,6 +352,7 @@
 				SUPPORTED_PLATFORMS = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALIDATE_PRODUCT = YES;
+				DEVELOPMENT_TEAM = 7DWSWRRNNR;
 			};
 			name = Profile;
 		};
@@ -373,6 +374,10 @@
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
+				DEVELOPMENT_TEAM = 7DWSWRRNNR;
+				CODE_SIGN_STYLE = Manual;
+				ProvisioningStyle = Manual;
+				PROVISIONING_PROFILE_SPECIFIER = otaviatrails_profile;
 			};
 			name = Profile;
 		};
@@ -390,6 +395,8 @@
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
+				DEVELOPMENT_TEAM = 7DWSWRRNNR;
+				PROVISIONING_PROFILE_SPECIFIER = otaviatrails_profile;
 			};
 			name = Debug;
 		};
@@ -405,6 +412,8 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
+				DEVELOPMENT_TEAM = 7DWSWRRNNR;
+				PROVISIONING_PROFILE_SPECIFIER = otaviatrails_profile;
 			};
 			name = Release;
 		};
@@ -420,6 +429,8 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
+				DEVELOPMENT_TEAM = 7DWSWRRNNR;
+				PROVISIONING_PROFILE_SPECIFIER = otaviatrails_profile;
 			};
 			name = Profile;
 		};
@@ -477,6 +488,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				DEVELOPMENT_TEAM = 7DWSWRRNNR;
 			};
 			name = Debug;
 		};
@@ -531,6 +543,7 @@
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALIDATE_PRODUCT = YES;
+				DEVELOPMENT_TEAM = 7DWSWRRNNR;
 			};
 			name = Release;
 		};
@@ -553,6 +566,10 @@
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
+				DEVELOPMENT_TEAM = 7DWSWRRNNR;
+				CODE_SIGN_STYLE = Manual;
+				ProvisioningStyle = Manual;
+				PROVISIONING_PROFILE_SPECIFIER = otaviatrails_profile;
 			};
 			name = Debug;
 		};
@@ -574,6 +591,10 @@
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
+				DEVELOPMENT_TEAM = 7DWSWRRNNR;
+				CODE_SIGN_STYLE = Manual;
+				ProvisioningStyle = Manual;
+				PROVISIONING_PROFILE_SPECIFIER = otaviatrails_profile;
 			};
 			name = Release;
 		};
