@@ -18,14 +18,18 @@ jobs:
         with:
           flutter-version: '3.35.7'
           channel: stable
+          cache: true
+
+      - name: Create .env file
+        run: |
+          echo "API_ENDPOINT=${{ secrets.API_ENDPOINT }}" >> .env
+          echo "OFFLINE_DATA_URL=${{ secrets.OFFLINE_DATA_URL }}" >> .env
 
       - name: Install dependencies
         run: flutter pub get
 
       - name: Install CocoaPods
-        run: |
-          sudo gem install cocoapods
-          pod repo update
+        run: pod repo update
 
       - name: Build iOS (no signing)
         run: flutter build ios --release --no-codesign
