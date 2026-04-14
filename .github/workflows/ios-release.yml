@@ -26,6 +26,8 @@ jobs:
           echo "APPLE_APP_SPECIFIC_PASSWORD=${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}" >> .env
       - name: Install certificate
         run: |
+          echo "${{ secrets.IOS_CERTIFICATE }}"
+          echo "${{ secrets.IOS_CERTIFICATE }}" | wc -c
           echo "${{ secrets.IOS_CERTIFICATE }}" | base64 -D > certificate.p12
           security create-keychain -p "" build.keychain
           security default-keychain -s build.keychain
