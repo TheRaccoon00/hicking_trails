@@ -109,6 +109,6 @@ class Trail {
       }
     }
     
-    this.distanceToUser = minDistance;
+    distanceToUser = minDistance;
   }
 }

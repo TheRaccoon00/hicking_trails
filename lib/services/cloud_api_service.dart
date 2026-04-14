@@ -3,9 +3,10 @@ import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_map/flutter_map.dart';
 import '../models/trail.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class CloudApiService {
-  static const String endpoint = "https://v8gd0grz85.execute-api.ap-southeast-1.amazonaws.com/trails";
+  static String get endpoint => dotenv.env['API_ENDPOINT'] ?? "";
 
   static Future<List<Trail>> getTrailsInBounds(LatLngBounds bounds) async {
     final uri = Uri.parse("$endpoint?minLat=${bounds.south}&minLon=${bounds.west}&maxLat=${bounds.north}&maxLon=${bounds.east}");

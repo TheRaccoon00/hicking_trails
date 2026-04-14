@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../models/trail.dart';
+import '../theme/app_theme.dart';
 
-class CustomMapView extends StatelessWidget {
+class CustomMapView extends StatefulWidget {
   final LatLng initialCenter;
   final double initialZoom;
   final List<Trail> trails;
@@ -14,7 +15,7 @@ class CustomMapView extends StatelessWidget {
   final Function(String)? onTrailTap;
 
   const CustomMapView({
-    Key? key,
+    super.key,
     required this.initialCenter,
     required this.initialZoom,
     required this.trails,
@@ -22,7 +23,14 @@ class CustomMapView extends StatelessWidget {
     this.selectedTrailId,
     this.onTrailTap,
     this.onMapMoveEnd,
-  }) : super(key: key);
+  });
+
+  @override
+  State<CustomMapView> createState() => _CustomMapViewState();
+}
+
+class _CustomMapViewState extends State<CustomMapView> {
+  double _rotation = 0.0;
 
   @override
   Widget build(BuildContext context) {
@@ -31,23 +39,23 @@ class CustomMapView extends StatelessWidget {
 
     // Geometric Sub-Sampling to maintain 60FPS on massive zooms.
     int step = 1;
-    if (initialZoom < 8.0) {
+    if (widget.initialZoom < 8.0) {
         step = 50; 
-    } else if (initialZoom < 11.0) {
+    } else if (widget.initialZoom < 11.0) {
         step = 20; 
-    } else if (initialZoom < 13.0) {
+    } else if (widget.initialZoom < 13.0) {
         step = 8; 
     }
 
-    var unselectedTrails = trails.where((t) => t.id != selectedTrailId).toList();
-    var selectedTrails = trails.where((t) => t.id == selectedTrailId).toList();
+    var unselectedTrails = widget.trails.where((t) => t.id != widget.selectedTrailId).toList();
+    var selectedTrails = widget.trails.where((t) => t.id == widget.selectedTrailId).toList();
     var orderedTrails = [...unselectedTrails, ...selectedTrails]; // Ensure selected elements render ON TOP
 
     for (int i = 0; i < orderedTrails.length; i++) {
         var trail = orderedTrails[i];
-        bool isSelected = trail.id == selectedTrailId;
+        bool isSelected = trail.id == widget.selectedTrailId;
         
-        Color color = isSelected ? const Color(0xFFFF5F1F) : const Color(0xFF9CA3AF).withOpacity(0.9);
+        Color color = isSelected ? AppTheme.neonOrange : AppTheme.grayUnselected.withOpacity(0.9);
         
         // Add starting pin (Colored consistently neon orange)
         if (trail.coordinateSegments.isNotEmpty && trail.coordinateSegments.first.isNotEmpty) {
@@ -56,18 +64,19 @@ class CustomMapView extends StatelessWidget {
                 width: 32.0, height: 32.0,
                 child: GestureDetector(
                     onTap: () {
-                        if (onTrailTap != null) onTrailTap!(trail.id);
+                        if (widget.onTrailTap != null) widget.onTrailTap!(trail.id);
                     },
-                    child: Icon(Icons.location_on, color: const Color(0xFFFF5F1F), size: isSelected ? 32.0 : 20.0),
+                    child: Icon(Icons.location_on, color: AppTheme.neonOrange, size: isSelected ? 32.0 : 20.0),
                 ),
             ));
         }
 
-        double strokeW = initialZoom <= 8.0 ? 2.0 : 4.0;
+        // 2x Thicker default lines per user request
+        double strokeW = widget.initialZoom <= 8.0 ? 4.0 : 8.0; 
         if (isSelected) {
-            strokeW += 3.0; // Thick selection
+            strokeW += 4.0; // Even thicker selection to stay on top
         } else if (trail.distanceToUser != null && trail.distanceToUser! < 50000) {
-            strokeW += 1.0; 
+            strokeW += 2.0; 
         }
 
         List<LatLng> currentLine = [];
@@ -115,52 +124,78 @@ class CustomMapView extends StatelessWidget {
         }
     }
 
-    return FlutterMap(
-      mapController: mapController,
-      options: MapOptions(
-        initialCenter: initialCenter,
-        initialZoom: initialZoom,
-        onTap: (tapPosition, point) {
-            double closestDist = double.infinity;
-            String? closestId;
-            for(var trail in trails) {
-                for(var segment in trail.coordinateSegments) {
-                    for(var pt in segment) {
-                        double dist = Trail.haversineDist(point.latitude, point.longitude, pt.latitude, pt.longitude);
-                        if (dist < closestDist) {
-                            closestDist = dist;
-                            closestId = trail.id;
+    return Stack(
+      children: [
+        FlutterMap(
+          mapController: widget.mapController,
+          options: MapOptions(
+            initialCenter: widget.initialCenter,
+            initialZoom: widget.initialZoom,
+            onTap: (tapPosition, point) {
+                double closestDist = double.infinity;
+                String? closestId;
+                for(var trail in widget.trails) {
+                    for(var segment in trail.coordinateSegments) {
+                        for(var pt in segment) {
+                            double dist = Trail.haversineDist(point.latitude, point.longitude, pt.latitude, pt.longitude);
+                            if (dist < closestDist) {
+                                closestDist = dist;
+                                closestId = trail.id;
+                            }
                         }
                     }
                 }
-            }
-            // Max selection distance roughly 500 meters or adjusted visually
-            if (closestDist < 1.5 && closestId != null) { 
-                if (onTrailTap != null) onTrailTap!(closestId);
-            }
-        },
-        onMapReady: () {
-            if (onMapMoveEnd != null) {
-                onMapMoveEnd!(mapController.camera.visibleBounds, mapController.camera.zoom);
-            }
-        },
-        onMapEvent: (MapEvent event) {
-            if (event is MapEventMoveEnd && onMapMoveEnd != null) {
-                onMapMoveEnd!(event.camera.visibleBounds, event.camera.zoom);
-            }
-        },
-      ),
-      children: [
-        TileLayer(
-          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-          userAgentPackageName: 'com.example.hiking_trails',
+                // Max selection distance roughly 500 meters or adjusted visually
+                if (closestDist < 1.5 && closestId != null) { 
+                    if (widget.onTrailTap != null) widget.onTrailTap!(closestId);
+                }
+            },
+            onMapReady: () {
+                if (widget.onMapMoveEnd != null) {
+                    widget.onMapMoveEnd!(widget.mapController.camera.visibleBounds, widget.mapController.camera.zoom);
+                }
+            },
+            onMapEvent: (MapEvent event) {
+                setState(() {
+                  _rotation = event.camera.rotation;
+                });
+                if (event is MapEventMoveEnd && widget.onMapMoveEnd != null) {
+                    widget.onMapMoveEnd!(event.camera.visibleBounds, event.camera.zoom);
+                }
+            },
+          ),
+          children: [
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'com.example.hiking_trails',
+            ),
+            PolylineLayer(
+              polylines: polylines,
+            ),
+            MarkerLayer(
+              markers: startPins,
+            ),
+          ],
         ),
-        PolylineLayer(
-          polylines: polylines,
-        ),
-        MarkerLayer(
-          markers: startPins,
-        ),
+        if (_rotation != 0)
+          Positioned(
+            top: 16,
+            right: 16,
+            child: FloatingActionButton.small(
+              heroTag: 'compass',
+              backgroundColor: Colors.white.withOpacity(0.8),
+              onPressed: () {
+                widget.mapController.rotate(0);
+                setState(() {
+                  _rotation = 0;
+                });
+              },
+              child: Transform.rotate(
+                angle: -_rotation * (3.14159 / 180),
+                child: const Icon(Icons.explore, color: AppTheme.darkGreen, size: 24),
+              ),
+            ),
+          ),
       ],
     );
   }

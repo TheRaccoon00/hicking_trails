@@ -21,7 +21,7 @@ class TrailCard extends StatelessWidget {
   final bool isWeatherLoading;
 
   const TrailCard({
-    Key? key,
+    super.key,
     required this.trail,
     required this.isSelected,
     required this.isFav,
@@ -32,7 +32,7 @@ class TrailCard extends StatelessWidget {
     this.isElevLoading = false,
     this.weatherData,
     this.isWeatherLoading = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -103,19 +103,13 @@ class TrailCard extends StatelessWidget {
           Text("📍 ${AppLocalizations.t('depart')}: ${trail.from ?? AppLocalizations.t('unknown')}", style: AppTheme.subtitleStyle),
           Text("🏁 ${AppLocalizations.t('arrivee')}: ${trail.to ?? AppLocalizations.t('unknown')}", style: AppTheme.subtitleStyle),
           const SizedBox(height: 6),
-          Row(
+          Wrap(
+            spacing: 12,
+            runSpacing: 4,
             children: [
-              const Icon(Icons.straighten, size: 14, color: Colors.blueAccent),
-              const SizedBox(width: 4),
-              Text("${trail.lengthKm.toStringAsFixed(1)} km", style: const TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(width: 16),
-              const Icon(Icons.trending_up, size: 14, color: Colors.green),
-              const SizedBox(width: 2),
-              Text(dP, style: TextStyle(fontWeight: FontWeight.bold, color: isElevLoading ? Colors.grey : Colors.green[700])),
-              const SizedBox(width: 12),
-              const Icon(Icons.trending_down, size: 14, color: Colors.orange),
-              const SizedBox(width: 2),
-              Text(dM, style: TextStyle(fontWeight: FontWeight.bold, color: isElevLoading ? Colors.grey : Colors.orange[700])),
+              _buildStatItem(Icons.straighten, Colors.blueAccent, "${trail.lengthKm.toStringAsFixed(1)} km"),
+              _buildStatItem(Icons.trending_up, Colors.green, dP, textColor: isElevLoading ? Colors.grey : Colors.green[700]),
+              _buildStatItem(Icons.trending_down, Colors.orange, dM, textColor: isElevLoading ? Colors.grey : Colors.orange[700]),
             ],
           ),
           if (weatherData != null || isWeatherLoading) 
@@ -139,21 +133,24 @@ class TrailCard extends StatelessWidget {
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: () => GpxService.downloadGpx(trail),
-                  icon: const Icon(Icons.download),
-                  label: const Text("GPX"),
-                  style: AppTheme.secondaryButtonStyle,
+                  icon: const Icon(Icons.download, size: 16),
+                  label: const Text("GPX", style: TextStyle(fontSize: 12)),
+                  style: AppTheme.secondaryButtonStyle.copyWith(
+                    padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 4)),
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                flex: 2,
                 child: ElevatedButton.icon(
                   onPressed: () {
                     Navigator.push(context, MaterialPageRoute(builder: (_) => HikingModeScreen(trail: trail)));
                   },
-                  icon: const Icon(Icons.play_arrow),
-                  label: const Text("DÉMARRER"),
-                  style: AppTheme.startButtonStyle,
+                  icon: const Icon(Icons.play_arrow, size: 16),
+                  label: const Text("START", style: TextStyle(fontSize: 12)),
+                  style: AppTheme.startButtonStyle.copyWith(
+                    padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 4)),
+                  ),
                 ),
               ),
             ],
@@ -172,6 +169,17 @@ class TrailCard extends StatelessWidget {
         Text(dayName, style: const TextStyle(fontSize: 10, color: Colors.grey)),
         Icon(wd.icon, color: wd.color, size: 20),
         Text("${wd.avgTemp.toStringAsFixed(0)}°", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+      ],
+    );
+  }
+
+  Widget _buildStatItem(IconData icon, Color color, String text, {Color? textColor}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: color),
+        const SizedBox(width: 4),
+        Text(text, style: TextStyle(fontWeight: FontWeight.bold, color: textColor ?? Colors.black)),
       ],
     );
   }

@@ -10,7 +10,7 @@ import '../l10n/app_localizations.dart';
 class HikingModeScreen extends StatefulWidget {
   final Trail trail;
 
-  const HikingModeScreen({Key? key, required this.trail}) : super(key: key);
+  const HikingModeScreen({super.key, required this.trail});
 
   @override
   State<HikingModeScreen> createState() => _HikingModeScreenState();

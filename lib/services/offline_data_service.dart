@@ -1,5 +1,8 @@
+import 'dart:io';
 import 'dart:convert';
-import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -15,13 +18,32 @@ class OfflineDataService {
     if (_isLoaded) return;
     
     try {
-      final String jsonString = await rootBundle.loadString('assets/trails_offline.json');
+      final directory = await getApplicationDocumentsDirectory();
+      final file = File('${directory.path}/offline_trails_cache.json');
       
-      // Use compute to offload parsing to a separate thread
+      String jsonString;
+      
+      if (await file.exists()) {
+        jsonString = await file.readAsString();
+      } else {
+        // Download from AWS
+        final url = dotenv.env['OFFLINE_DATA_URL'];
+        if (url == null) throw Exception("OFFLINE_DATA_URL not found in .env");
+        
+        final response = await http.get(Uri.parse(url));
+        if (response.statusCode == 200) {
+          jsonString = response.body;
+          // Cache locally for next time
+          await file.writeAsString(jsonString);
+        } else {
+          throw Exception("Failed to download offline data: ${response.statusCode}");
+        }
+      }
+      
       _cachedTrails = await compute(_parseTrails, jsonString);
       _isLoaded = true;
     } catch (e) {
-      throw Exception("Failed to load offline trail data: $e");
+      throw Exception("Offline Data Service Error: $e");
     }
   }
 

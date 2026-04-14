@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'screens/home_screen.dart';
 import 'services/settings_service.dart';
 import 'l10n/app_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
   await SettingsService.init();
   AppLocalizations.localeNotifier.value = SettingsService.language;
   runApp(const HikingApp());
 }
 
 class HikingApp extends StatelessWidget {
-  const HikingApp({Key? key}) : super(key: key);
+  const HikingApp({super.key});
 
   @override
   Widget build(BuildContext context) {

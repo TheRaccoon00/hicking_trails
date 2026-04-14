@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsService {
@@ -7,12 +8,21 @@ class SettingsService {
     _prefs = await SharedPreferences.getInstance();
   }
 
-  static String get language => _prefs.getString('language') ?? 'fr';
+  static String get language {
+    final stored = _prefs.getString('language');
+    if (stored != null) return stored;
+    
+    // Auto-detect system language
+    final String sysLang = PlatformDispatcher.instance.locale.languageCode.toLowerCase();
+    const supported = ['fr', 'en', 'es', 'pt', 'it', 'de'];
+    
+    return supported.contains(sysLang) ? sysLang : 'en';
+  }
   static Future<void> setLanguage(String lang) async {
     await _prefs.setString('language', lang);
   }
 
-  static bool get useCloudApi => _prefs.getBool('use_cloud_api') ?? false;
+  static bool get useCloudApi => _prefs.getBool('use_cloud_api') ?? true;
   static Future<void> setUseCloudApi(bool val) async {
     await _prefs.setBool('use_cloud_api', val);
   }

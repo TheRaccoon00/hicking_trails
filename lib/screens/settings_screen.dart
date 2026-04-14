@@ -3,7 +3,7 @@ import '../services/settings_service.dart';
 import '../l10n/app_localizations.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({Key? key}) : super(key: key);
+  const SettingsScreen({super.key});
 
   @override
   _SettingsScreenState createState() => _SettingsScreenState();
@@ -83,7 +83,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 SwitchListTile(
                    title: Text(AppLocalizations.t('useCloud'), style: const TextStyle(fontWeight: FontWeight.bold)),
                    subtitle: Text(AppLocalizations.t('useCloudDesc')),
-                   activeColor: const Color(0xFFFF5F1F),
+                   activeThumbColor: const Color(0xFFFF5F1F),
                    value: SettingsService.useCloudApi,
                    onChanged: (val) async {
                        await SettingsService.setUseCloudApi(val);

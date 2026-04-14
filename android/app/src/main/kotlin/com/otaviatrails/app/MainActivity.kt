@@ -1,4 +1,4 @@
-package com.example.hiking_trails
+package com.otaviatrails.app
 
 import io.flutter.embedding.android.FlutterActivity
 

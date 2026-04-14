@@ -16,13 +16,13 @@ class TrailListView extends StatefulWidget {
   final Function(String)? onTrailTap;
 
   const TrailListView({
-      Key? key, 
+      super.key, 
       required this.trails, 
       this.scrollController, 
       this.hideUnloved = false,
       this.selectedTrailId,
       this.onTrailTap,
-  }) : super(key: key);
+  });
 
   @override
   State<TrailListView> createState() => _TrailListViewState();
@@ -30,10 +30,10 @@ class TrailListView extends StatefulWidget {
 
 class _TrailListViewState extends State<TrailListView> {
   Set<String> _favorites = {};
-  Map<String, List<double>> _elevationData = {};
-  Map<String, bool> _isLoadingElevation = {};
-  Map<String, List<WeatherDay>> _weatherData = {};
-  Map<String, bool> _isLoadingWeather = {};
+  final Map<String, List<double>> _elevationData = {};
+  final Map<String, bool> _isLoadingElevation = {};
+  final Map<String, List<WeatherDay>> _weatherData = {};
+  final Map<String, bool> _isLoadingWeather = {};
   RangeValues _distanceFilter = const RangeValues(0, 150);
 
   @override
@@ -78,7 +78,9 @@ class _TrailListViewState extends State<TrailListView> {
            if (step < 1) step = 1;
            
            List<LatLng> sampled = [];
-           for(int i = 0; i < allPts.length; i += step) sampled.add(allPts[i]);
+           for(int i = 0; i < allPts.length; i += step) {
+             sampled.add(allPts[i]);
+           }
            if (sampled.last != allPts.last) sampled.add(allPts.last);
            
            String lats = sampled.map((p) => p.latitude.toStringAsFixed(5)).join(',');

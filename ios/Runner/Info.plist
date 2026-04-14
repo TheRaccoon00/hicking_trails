@@ -3,13 +3,15 @@
 <plist version="1.0">
 <dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>This app needs your location to find nearby hiking trails.</string>
+	<string>Otavia trails utilise votre position pour afficher les sentiers de randonnée autour de vous et vous guider sur le tracé sélectionné.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
-	<string>This app needs your location to find nearby hiking trails.</string>
+	<string>Otavia trails utilise votre position en arrière-plan pour assurer le suivi de votre progression et vous alerter si vous vous écartez du sentier, même lorsque l'écran est éteint.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Otavia trails a besoin de votre position pour vous guider sur les sentiers et assurer votre sécurité en suivant votre progression en temps réel.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Hiking Trails</string>
+	<string>Otavia trails</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -17,7 +19,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>hiking_trails</string>
+	<string>Otavia trails</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

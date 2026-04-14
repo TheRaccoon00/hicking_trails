@@ -1,6 +1,5 @@
 import 'package:xml/xml.dart';
 import '../models/trail.dart';
-import 'package:flutter/foundation.dart';
 
 // Conditional imports based on platform
 import '../utils/gpx_export_io.dart' if (dart.library.html) '../utils/gpx_export_web.dart' as exporter;
