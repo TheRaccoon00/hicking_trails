@@ -47,6 +47,30 @@ jobs:
 
       - name: Build iOS
         run: flutter build ios --release
+    
+      - name: Install Fastlane
+        run: sudo gem install fastlane
+
+      - name: Create API key file
+        run: |
+          mkdir -p ios/fastlane
+          cat > ios/fastlane/api_key.json <<EOF
+          {
+            "key_id": "${{ secrets.APP_STORE_KEY_ID }}",
+            "issuer_id": "${{ secrets.APP_STORE_ISSUER_ID }}",
+            "key": "${{ secrets.APP_STORE_PRIVATE_KEY }}"
+          }
+          EOF
+
+      - name: Upload to TestFlight
+        run: |
+          cd ios
+          fastlane pilot upload \
+            --ipa ../build/ios/ipa/*.ipa \
+            --api_key_path fastlane/api_key.json
+      
+      - name: Build IPA
+        run: flutter build ipa
 
       - name: Create IPA
         run: |
