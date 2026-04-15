@@ -48,26 +48,17 @@ jobs:
       - name: Install Fastlane
         run: sudo gem install fastlane
 
-      - name: Create API key file
-        run: |
-          mkdir -p ios/fastlane
-          cat > ios/fastlane/api_key.json <<EOF
-          {
-            "key_id": "${{ secrets.APP_STORE_KEY_ID }}",
-            "issuer_id": "${{ secrets.APP_STORE_ISSUER_ID }}",
-            "key": "${{ secrets.APP_STORE_PRIVATE_KEY }}"
-          }
-          EOF
-
       - name: Build IPA
         run: flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
 
       - name: Upload to TestFlight
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_KEY: ${{ secrets.APP_STORE_PRIVATE_KEY }}
         run: |
           cd ios
-          fastlane pilot upload \
-            --ipa ../build/ios/ipa/*.ipa \
-            --api_key_path fastlane/api_key.json
+          fastlane pilot upload --ipa ../build/ios/ipa/*.ipa
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
