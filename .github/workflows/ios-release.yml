@@ -2,7 +2,7 @@ name: iOS Release Build
 
 on:
   push:
-    branches: [ main ]
+    branches: [ release ]
 
 jobs:
   build-ios:
