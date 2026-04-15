@@ -30,6 +30,14 @@ platform :ios do
       UI.user_error!("Could not find any IPA file in the build directory. Please check the 'Build IPA' step output.")
     end
 
+    # Rename the file if it contains spaces, as it often breaks CI tools
+    if ipa_file.include?(" ")
+      UI.message("Renaming IPA to remove spaces: #{ipa_file}")
+      temp_ipa_path = File.join(File.dirname(ipa_file), "app.ipa")
+      File.rename(ipa_file, temp_ipa_path)
+      ipa_file = temp_ipa_path
+    end
+
     UI.message("Found IPA at: #{ipa_file}")
 
     upload_to_testflight(
