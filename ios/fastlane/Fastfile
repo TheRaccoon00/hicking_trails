@@ -13,9 +13,11 @@ platform :ios do
     # Search for the IPA in multiple possible locations
     search_paths = [
       "../build/ios/ipa/*.ipa",
-      "../../build/ios/ipa/*.ipa",
-      File.join(ENV['GITHUB_WORKSPACE'], "build/ios/ipa/*.ipa") rescue nil
-    ].compact
+      "../../build/ios/ipa/*.ipa"
+    ]
+    if ENV['GITHUB_WORKSPACE']
+      search_paths << File.join(ENV['GITHUB_WORKSPACE'], "build/ios/ipa/*.ipa")
+    end
 
     ipa_file = nil
     search_paths.each do |path|
