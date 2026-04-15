@@ -10,7 +10,7 @@ platform :ios do
       is_key_content_base64: false
     )
     upload_to_testflight(
-      ipa: "../build/ios/ipa/Runner.ipa",
+      ipa: Dir["../build/ios/ipa/*.ipa"].first,
       skip_waiting_for_build_processing: true
     )
   end
