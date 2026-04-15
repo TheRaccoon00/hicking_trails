@@ -13,6 +13,7 @@ class OfflineDataService {
   static bool _isLoaded = false;
   
   static List<Trail> get allCachedTrails => _cachedTrails;
+  static bool get isLoaded => _isLoaded;
 
   static Future<void> loadOfflineData() async {
     if (_isLoaded) return;

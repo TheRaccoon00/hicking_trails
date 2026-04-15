@@ -45,4 +45,38 @@ class CloudApiService {
       throw Exception("Cloud API Error: ${response.statusCode}");
     }
   }
+
+  static Future<List<Trail>> searchTrails(String query) async {
+    final uri = Uri.parse("$endpoint?name=$query");
+    final response = await http.get(uri);
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      final List<dynamic> trailsJson = data['trails'] ?? [];
+      
+      List<Trail> result = [];
+      for (var element in trailsJson) {
+         List<List<LatLng>> segments = [];
+         if (element['segments'] != null) {
+            for(var segment in element['segments']) {
+                List<LatLng> coords = (segment as List).map((pt) {
+                   return LatLng((pt[0] as num).toDouble(), (pt[1] as num).toDouble());
+                }).toList();
+                segments.add(coords);
+            }
+         }
+         
+         try {
+             result.add(Trail.fromJson(element, segments));
+         } catch (e) {
+             String id = element['id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString();
+             String name = element['tags']?['name'] ?? "Sentier inconnu";
+             result.add(Trail(id: id, name: name, coordinateSegments: segments));
+         }
+      }
+      return result;
+    } else {
+      throw Exception("Cloud API Search Error: ${response.statusCode}");
+    }
+  }
 }

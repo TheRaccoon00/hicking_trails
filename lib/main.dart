@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'screens/home_screen.dart';
 import 'services/settings_service.dart';
 import 'l10n/app_localizations.dart';
@@ -26,16 +27,18 @@ class HikingApp extends StatelessWidget {
             colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1A2F25)),
             useMaterial3: true,
             scaffoldBackgroundColor: const Color(0xFFF9FAFB),
-            textTheme: ThemeData.light().textTheme.apply(
-              bodyColor: const Color(0xFF111827),
-              displayColor: const Color(0xFF111827),
+            textTheme: GoogleFonts.outfitTextTheme(
+               ThemeData.light().textTheme.apply(
+                  bodyColor: const Color(0xFF111827),
+                  displayColor: const Color(0xFF111827),
+               ),
             ),
             appBarTheme: const AppBarTheme(
               backgroundColor: Color(0xFF1A2F25),
               foregroundColor: Colors.white,
             ),
             bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-              backgroundColor: Color(0xFFF3E8FF),
+              backgroundColor: Color(0xFFF9FAFB),
               selectedItemColor: Color(0xFF1A2F25),
               unselectedItemColor: Colors.grey,
             )

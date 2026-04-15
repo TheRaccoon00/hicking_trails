@@ -284,26 +284,6 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _showAbout() {
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: Text(
-            AppLocalizations.t('about'),
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          content: Text(AppLocalizations.t('aboutDisclaimer')),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: Text(AppLocalizations.t('close')),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -344,18 +324,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   context,
                   MaterialPageRoute(builder: (_) => const SettingsScreen()),
                 );
-              } else if (value == 'about') {
-                _showAbout();
               }
             },
             itemBuilder: (context) => [
               PopupMenuItem(
                 value: 'settings',
                 child: Text(AppLocalizations.t('settings')),
-              ),
-              PopupMenuItem(
-                value: 'about',
-                child: Text(AppLocalizations.t('about')),
               ),
             ],
           ),
