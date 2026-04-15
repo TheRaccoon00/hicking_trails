@@ -45,9 +45,6 @@ jobs:
       - name: Install CocoaPods
         run: pod install --project-directory=ios
 
-      - name: Build iOS
-        run: flutter build ios --release
-    
       - name: Install Fastlane
         run: sudo gem install fastlane
 
@@ -63,7 +60,7 @@ jobs:
           EOF
 
       - name: Build IPA
-        run: flutter build ipa
+        run: flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
 
       - name: Upload to TestFlight
         run: |
@@ -71,16 +68,9 @@ jobs:
           fastlane pilot upload \
             --ipa ../build/ios/ipa/*.ipa \
             --api_key_path fastlane/api_key.json
-      
-      - name: Create IPA
-        run: |
-          cd build/ios/iphoneos
-          mkdir Payload
-          cp -r Runner.app Payload/
-          zip -r app.ipa Payload
 
-      - name: Upload IPA
+      - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ios-ipa
-          path: build/ios/iphoneos/app.ipa
+          path: build/ios/ipa/*.ipa
