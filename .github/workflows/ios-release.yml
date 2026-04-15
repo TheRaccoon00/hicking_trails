@@ -58,7 +58,7 @@ jobs:
           APP_STORE_CONNECT_API_KEY_KEY: ${{ secrets.APP_STORE_PRIVATE_KEY }}
         run: |
           cd ios
-          fastlane pilot upload --ipa ../build/ios/ipa/*.ipa
+          fastlane beta
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
