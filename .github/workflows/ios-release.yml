@@ -62,6 +62,9 @@ jobs:
           }
           EOF
 
+      - name: Build IPA
+        run: flutter build ipa
+
       - name: Upload to TestFlight
         run: |
           cd ios
@@ -69,9 +72,6 @@ jobs:
             --ipa ../build/ios/ipa/*.ipa \
             --api_key_path fastlane/api_key.json
       
-      - name: Build IPA
-        run: flutter build ipa
-
       - name: Create IPA
         run: |
           cd build/ios/iphoneos
