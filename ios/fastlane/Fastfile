@@ -10,35 +10,31 @@ platform :ios do
       is_key_content_base64: false
     )
 
-    # Search for the IPA in multiple possible locations
-    search_paths = [
-      "../build/ios/ipa/*.ipa",
-      "../../build/ios/ipa/*.ipa"
-    ]
-    if ENV['GITHUB_WORKSPACE']
-      search_paths << File.join(ENV['GITHUB_WORKSPACE'], "build/ios/ipa/*.ipa")
-    end
-
-    ipa_file = nil
-    search_paths.each do |path|
-      ipa_file = Dir.glob(path).first
-      break if ipa_file
-    end
+    # Determine the project root (GITHUB_WORKSPACE is most reliable in CI)
+    project_root = ENV['GITHUB_WORKSPACE'] || File.expand_path("../..", Dir.pwd)
+    
+    # Search for the IPA in the build directory
+    ipa_search_pattern = File.join(project_root, "build/ios/ipa/*.ipa")
+    ipa_file = Dir.glob(ipa_search_pattern).first
 
     unless ipa_file
-      UI.message("Searched paths: #{search_paths.join(', ')}")
+      UI.message("Project root: #{project_root}")
+      UI.message("Search pattern: #{ipa_search_pattern}")
       UI.user_error!("Could not find any IPA file in the build directory. Please check the 'Build IPA' step output.")
     end
 
+    # Ensure we use an absolute path
+    ipa_file = File.expand_path(ipa_file)
+
     # Rename the file if it contains spaces, as it often breaks CI tools
-    if ipa_file.include?(" ")
+    if File.basename(ipa_file).include?(" ")
       UI.message("Renaming IPA to remove spaces: #{ipa_file}")
       temp_ipa_path = File.join(File.dirname(ipa_file), "app.ipa")
       File.rename(ipa_file, temp_ipa_path)
       ipa_file = temp_ipa_path
     end
 
-    UI.message("Found IPA at: #{ipa_file}")
+    UI.message("Using IPA at: #{ipa_file}")
 
     upload_to_testflight(
       ipa: ipa_file,
