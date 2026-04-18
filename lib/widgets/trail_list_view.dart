@@ -192,7 +192,7 @@ class _TrailListViewState extends State<TrailListView> {
                         ),
                         RangeSlider(
                            activeColor: const Color(0xFFFF5F1F),
-                           inactiveColor: const Color(0xFFFF5F1F).withOpacity(0.3),
+                           inactiveColor: const Color(0xFFFF5F1F).withValues(alpha: 0.3),
                            min: 0, max: 150,
                            divisions: 150,
                            values: _distanceFilter,

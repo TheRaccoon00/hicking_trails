@@ -31,99 +31,203 @@ class CustomMapView extends StatefulWidget {
 
 class _CustomMapViewState extends State<CustomMapView> {
   double _rotation = 0.0;
+  double _currentZoom = 8.0;
+  int _lastThresholdBucket = -1;
+
+  // Pre-computed render layers — only rebuilt when data/zoom-threshold changes
+  List<Polyline> _polylines = [];
+  List<Marker> _markers = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _currentZoom = widget.initialZoom;
+    // Don't call _rebuildLayers here as the MapController is not yet attached to a rendered FlutterMap
+  }
+
+  @override
+  void didUpdateWidget(CustomMapView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.trails.length != widget.trails.length ||
+        oldWidget.selectedTrailId != widget.selectedTrailId) {
+      _rebuildLayers();
+    }
+  }
+
+  int _thresholdBucket(double zoom) {
+    if (zoom < 5) return 0;
+    if (zoom < 7) return 1;
+    if (zoom < 9) return 2;
+    if (zoom < 11) return 3;
+    if (zoom < 13) return 4;
+    return 5;
+  }
+
+  double _minImportanceForBucket(int bucket) {
+    switch (bucket) {
+      case 0: return 80;
+      case 1: return 50;
+      case 2: return 30;
+      case 3: return 15;
+      case 4: return 5;
+      default: return 0;
+    }
+  }
+
+  void _rebuildLayers() {
+    LatLngBounds? bounds;
+    double zoom = _currentZoom;
+
+    try {
+      final camera = widget.mapController.camera;
+      bounds = camera.visibleBounds;
+      zoom = camera.zoom;
+    } catch (_) {
+      // MapController not ready yet, use initial values if possible
+      // or skip viewport filtering for this frame
+    }
+
+    int bucket = _thresholdBucket(zoom);
+    double minImportance = _minImportanceForBucket(bucket);
+    _lastThresholdBucket = bucket;
+
+    // 1. Initial filter by importance and VIEWPORT
+    // We keep a small buffer (0.1 deg) around the viewport
+    var filteredTrails = widget.trails.where((t) {
+      if (t.id == widget.selectedTrailId) return true;
+      if (t.importance < minImportance) return false;
+
+      // Viewport check (start or end point)
+      if (t.coordinateSegments.isEmpty || t.coordinateSegments.first.isEmpty) return false;
+      var start = t.coordinateSegments.first.first;
+      var end = t.coordinateSegments.last.last;
+      
+      bool inViewport = bounds == null || bounds.contains(start) || bounds.contains(end);
+      return inViewport;
+    }).toList();
+
+    // 2. Cap at 1500 for rendering performance
+    if (filteredTrails.length > 1500) {
+      filteredTrails.sort((a, b) => b.importance.compareTo(a.importance));
+      var sel = filteredTrails.where((t) => t.id == widget.selectedTrailId).toList();
+      var others = filteredTrails.where((t) => t.id != widget.selectedTrailId).take(1500).toList();
+      filteredTrails = [...sel, ...others];
+    }
+
+    // 3. IMPORTANT: Sort by importance ASCENDING for Z-order
+    // (High importance trails added last -> drawn on top)
+    var unselected = filteredTrails.where((t) => t.id != widget.selectedTrailId).toList();
+    unselected.sort((a, b) => a.importance.compareTo(b.importance));
+    
+    // Sub-sampling step for long polylines
+    int step = 1;
+    if (zoom < 8.0) { step = 50; }
+    else if (zoom < 11.0) { step = 20; }
+    else if (zoom < 13.0) { step = 8; }
+
+    var selected = filteredTrails.where((t) => t.id == widget.selectedTrailId).toList();
+    var orderedTrails = [...unselected, ...selected];
+
+    List<Polyline> polylines = [];
+    List<Marker> markers = [];
+
+    double zoomScale = (zoom / 10.0).clamp(0.4, 3.0);
+
+    for (var trail in orderedTrails) {
+      bool isSelected = trail.id == widget.selectedTrailId;
+
+      Color color;
+      double baseWeight;
+      if (isSelected) {
+        color = AppTheme.neonOrange; baseWeight = 5.0;
+      } else if (trail.importance >= 80) {
+        color = AppTheme.emeraldGR; baseWeight = 4.0;
+      } else if (trail.importance >= 55) {
+        color = AppTheme.forestRegional; baseWeight = 2.5;
+      } else {
+        color = AppTheme.sageLocal; baseWeight = 1.2;
+      }
+
+      double markerSize = (10.0 + (trail.importance / 100.0) * 18.0) * zoomScale;
+      if (isSelected) markerSize += 4.0;
+
+      // Start marker (Puck)
+      if (trail.coordinateSegments.isNotEmpty && trail.coordinateSegments.first.isNotEmpty) {
+        markers.add(Marker(
+          point: trail.coordinateSegments.first.first,
+          width: markerSize,
+          height: markerSize,
+          child: GestureDetector(
+            onLongPress: () => widget.onTrailTap?.call(trail.id), // Added long press for redundancy
+            onTap: () => widget.onTrailTap?.call(trail.id),
+            child: Container(
+              decoration: BoxDecoration(
+                color: isSelected ? AppTheme.neonOrange : color.withValues(alpha: 0.9),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white,
+                  width: isSelected ? 2.5 : 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black45,
+                    blurRadius: isSelected ? 6 : 3,
+                    offset: const Offset(0, 2),
+                  )
+                ],
+              ),
+              child: isSelected
+                  ? Icon(Icons.star, color: Colors.white, size: markerSize * 0.5)
+                  : null,
+            ),
+          ),
+        ));
+      }
+
+      // Build polylines ONLY if selected
+      if (isSelected) {
+        double strokeW = (baseWeight + 2.0) * zoomScale;
+        List<LatLng> currentLine = [];
+        for (var segment in trail.coordinateSegments) {
+          List<LatLng> pts = segment;
+          if (step > 1 && segment.length > 2) {
+            pts = [];
+            for (int j = 0; j < segment.length; j += step) {
+              pts.add(segment[j]);
+            }
+            if (pts.last.latitude != segment.last.latitude ||
+                pts.last.longitude != segment.last.longitude) {
+              pts.add(segment.last);
+            }
+          }
+
+          if (currentLine.isEmpty) {
+            currentLine.addAll(pts);
+          } else {
+            double dLat = (currentLine.last.latitude - pts.first.latitude).abs();
+            double dLon = (currentLine.last.longitude - pts.first.longitude).abs();
+            if (dLat < 0.02 && dLon < 0.02) {
+              currentLine.addAll(pts);
+            } else {
+              polylines.add(Polyline(
+                  points: currentLine, color: color, strokeWidth: strokeW));
+              currentLine = List.from(pts);
+            }
+          }
+        }
+        if (currentLine.isNotEmpty) {
+          polylines.add(
+              Polyline(points: currentLine, color: color, strokeWidth: strokeW));
+        }
+      }
+    }
+
+    _polylines = polylines;
+    _markers = markers;
+  }
 
   @override
   Widget build(BuildContext context) {
-    List<Polyline> polylines = [];
-    List<Marker> startPins = [];
-
-    // Geometric Sub-Sampling to maintain 60FPS on massive zooms.
-    int step = 1;
-    if (widget.initialZoom < 8.0) {
-        step = 50; 
-    } else if (widget.initialZoom < 11.0) {
-        step = 20; 
-    } else if (widget.initialZoom < 13.0) {
-        step = 8; 
-    }
-
-    var unselectedTrails = widget.trails.where((t) => t.id != widget.selectedTrailId).toList();
-    var selectedTrails = widget.trails.where((t) => t.id == widget.selectedTrailId).toList();
-    var orderedTrails = [...unselectedTrails, ...selectedTrails]; // Ensure selected elements render ON TOP
-
-    for (int i = 0; i < orderedTrails.length; i++) {
-        var trail = orderedTrails[i];
-        bool isSelected = trail.id == widget.selectedTrailId;
-        
-        Color color = isSelected ? AppTheme.neonOrange : AppTheme.grayUnselected.withOpacity(0.9);
-        
-        // Add starting pin (Colored consistently neon orange)
-        if (trail.coordinateSegments.isNotEmpty && trail.coordinateSegments.first.isNotEmpty) {
-            startPins.add(Marker(
-                point: trail.coordinateSegments.first.first,
-                width: 32.0, height: 32.0,
-                child: GestureDetector(
-                    onTap: () {
-                        if (widget.onTrailTap != null) widget.onTrailTap!(trail.id);
-                    },
-                    child: Icon(Icons.location_on, color: AppTheme.neonOrange, size: isSelected ? 32.0 : 20.0),
-                ),
-            ));
-        }
-
-        // 2x Thicker default lines per user request
-        double strokeW = widget.initialZoom <= 8.0 ? 4.0 : 8.0; 
-        if (isSelected) {
-            strokeW += 4.0; // Even thicker selection to stay on top
-        } else if (trail.distanceToUser != null && trail.distanceToUser! < 50000) {
-            strokeW += 2.0; 
-        }
-
-        List<LatLng> currentLine = [];
-
-        for (var segment in trail.coordinateSegments) {
-            List<LatLng> optimizedPoints = segment;
-            
-            // Apply sampling only if needed and segment is large enough
-            if (step > 1 && segment.length > 2) {
-                optimizedPoints = [];
-                for (int j = 0; j < segment.length; j += step) {
-                    optimizedPoints.add(segment[j]);
-                }
-                if (optimizedPoints.last.latitude != segment.last.latitude || optimizedPoints.last.longitude != segment.last.longitude) {
-                    optimizedPoints.add(segment.last);
-                }
-            }
-
-            if (currentLine.isEmpty) {
-                currentLine.addAll(optimizedPoints);
-            } else {
-                // Topological Protection: OSM segments are generally ordered.
-                // We only merge if the end of the current line is physically close to the start of the next segment.
-                // 0.02 degrees is ~2.2 kilometers. If the gap is larger, it's a disconnected jump.
-                double dLat = (currentLine.last.latitude - optimizedPoints.first.latitude).abs();
-                double dLon = (currentLine.last.longitude - optimizedPoints.first.longitude).abs();
-                
-                if (dLat < 0.02 && dLon < 0.02) {
-                    currentLine.addAll(optimizedPoints); // Glue them, saving massive overhead!
-                } else {
-                    // Gap detected! Commit current line to prevent drawing a straight spiderweb across cities.
-                    polylines.add(
-                        Polyline(points: currentLine, color: color, strokeWidth: strokeW)
-                    );
-                    currentLine = List.from(optimizedPoints); // Start a fresh line
-                }
-            }
-        }
-        
-        // Push the final remaining line
-        if (currentLine.isNotEmpty) {
-            polylines.add(
-                Polyline(points: currentLine, color: color, strokeWidth: strokeW)
-            );
-        }
-    }
-
     return Stack(
       children: [
         FlutterMap(
@@ -132,63 +236,73 @@ class _CustomMapViewState extends State<CustomMapView> {
             initialCenter: widget.initialCenter,
             initialZoom: widget.initialZoom,
             onTap: (tapPosition, point) {
-                double closestDist = double.infinity;
-                String? closestId;
-                for(var trail in widget.trails) {
-                    for(var segment in trail.coordinateSegments) {
-                        for(var pt in segment) {
-                            double dist = Trail.haversineDist(point.latitude, point.longitude, pt.latitude, pt.longitude);
-                            if (dist < closestDist) {
-                                closestDist = dist;
-                                closestId = trail.id;
-                            }
-                        }
-                    }
-                }
-                // Max selection distance roughly 500 meters or adjusted visually
-                if (closestDist < 1.5 && closestId != null) { 
-                    if (widget.onTrailTap != null) widget.onTrailTap!(closestId);
-                }
+              // Optimized hit-test: only check start point of each trail
+              double closestDist = double.infinity;
+              String? closestId;
+              for (var trail in widget.trails) {
+                if (trail.coordinateSegments.isEmpty || trail.coordinateSegments.first.isEmpty) continue;
+                var start = trail.coordinateSegments.first.first;
+                double dist = Trail.haversineDist(point.latitude, point.longitude, start.latitude, start.longitude);
+                if (dist < closestDist) { closestDist = dist; closestId = trail.id; }
+              }
+              if (closestDist < 2.0 && closestId != null) {
+                widget.onTrailTap?.call(closestId);
+              }
             },
             onMapReady: () {
-                if (widget.onMapMoveEnd != null) {
-                    widget.onMapMoveEnd!(widget.mapController.camera.visibleBounds, widget.mapController.camera.zoom);
-                }
+              _rebuildLayers();
+              setState(() {});
+              widget.onMapMoveEnd?.call(widget.mapController.camera.visibleBounds, widget.mapController.camera.zoom);
             },
             onMapEvent: (MapEvent event) {
-                setState(() {
-                  _rotation = event.camera.rotation;
-                });
-                if (event is MapEventMoveEnd && widget.onMapMoveEnd != null) {
-                    widget.onMapMoveEnd!(event.camera.visibleBounds, event.camera.zoom);
-                }
+              _currentZoom = event.camera.zoom;
+              bool needsRebuild = false;
+
+              // Rebuild when zoom crosses an importance threshold
+              int newBucket = _thresholdBucket(_currentZoom);
+              if (newBucket != _lastThresholdBucket) {
+                needsRebuild = true;
+              }
+
+              // Rebuild when dragging finishes (to populate holes)
+              if (event is MapEventMoveEnd) {
+                needsRebuild = true;
+              }
+
+              // Track rotation for compass (infrequent)
+              if (event.camera.rotation != _rotation) {
+                _rotation = event.camera.rotation;
+                needsRebuild = true;
+              }
+
+              if (needsRebuild) {
+                _rebuildLayers();
+                setState(() {});
+              }
+
+              if (event is MapEventMoveEnd) {
+                widget.onMapMoveEnd?.call(event.camera.visibleBounds, event.camera.zoom);
+              }
             },
           ),
           children: [
             TileLayer(
               urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.example.hiking_trails',
+              userAgentPackageName: 'com.otaviatrails.app',
             ),
-            PolylineLayer(
-              polylines: polylines,
-            ),
-            MarkerLayer(
-              markers: startPins,
-            ),
+            PolylineLayer(polylines: _polylines),
+            MarkerLayer(markers: _markers),
           ],
         ),
         if (_rotation != 0)
           Positioned(
-            top: 16,
-            right: 16,
+            top: 16, right: 16,
             child: FloatingActionButton.small(
               heroTag: 'compass',
-              backgroundColor: Colors.white.withOpacity(0.8),
+              backgroundColor: Colors.white.withValues(alpha: 0.8),
               onPressed: () {
                 widget.mapController.rotate(0);
-                setState(() {
-                  _rotation = 0;
-                });
+                setState(() { _rotation = 0; });
               },
               child: Transform.rotate(
                 angle: -_rotation * (3.14159 / 180),

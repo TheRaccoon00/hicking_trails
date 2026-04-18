@@ -82,6 +82,9 @@ class TrailSearchDelegate extends SearchDelegate<Trail?> {
       return trail.name.toLowerCase().contains(lowerQuery);
     }).toList();
 
+    // Sort by importance (highest first)
+    matches.sort((a, b) => b.importance.compareTo(a.importance));
+
     return _buildTrailList(context, matches);
   }
 

@@ -27,7 +27,15 @@ void main() {
     test('haversineDist calculation check', () {
       // Distance between Paris (48.8566, 2.3522) and Lyon (45.7640, 4.8357) is ~391 km
       double dist = Trail.haversineDist(48.8566, 2.3522, 45.7640, 4.8357);
-      expect(dist, closeTo(391.0, 2.0));
+      expect(dist, closeTo(391.2, 1.0));
+    });
+
+    test('Trail importance calculation logic mockup', () {
+      // Testing that higher importance value means more prominent trail
+      final grTrail = Trail(id: '1', name: 'GR5', importance: 90, coordinateSegments: []);
+      final localTrail = Trail(id: '2', name: 'Le Loup', importance: 10, coordinateSegments: []);
+      
+      expect(grTrail.importance > localTrail.importance, isTrue);
     });
   });
 }

@@ -7,6 +7,7 @@ Future<void> saveAndShareGpx(String xml, String fileName) async {
   final file = File('${directory.path}/$fileName');
   await file.writeAsString(xml);
   
+  // ignore: deprecated_member_use
   await Share.shareXFiles(
     [XFile(file.path)],
     subject: 'Tracé GPX : $fileName',

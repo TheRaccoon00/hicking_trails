@@ -20,7 +20,7 @@ class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  _HomeScreenState createState() => _HomeScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
@@ -29,17 +29,15 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _errorMessage;
   LatLng? _mapCenter;
   double _mapZoom = 8.0;
-  List<Trail> _trails = []; // Map gets the buffered list
-  List<Trail> _listTrails = []; // List strictly gets the visible slice
-  bool _isZoomTooFar = false;
+  final Map<String, Trail> _cachedTrails = {}; // Cumulative cache
+  List<Trail> _listTrails = []; // Strictly visible trails
   String? _selectedTrailId;
 
-  final double _minZoomLimit = 4.0;
   final MapController _mapController = MapController();
 
-  // Optimization Thresholds
-  LatLngBounds? _lastFetchedBounds;
-  LatLng? _lastFetchedCenter;
+  // Zone-based fetching
+  final Set<String> _fetchedZoneKeys = {};
+  double _currentZoom = 8.0;
 
   @override
   void initState() {
@@ -54,8 +52,6 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      // Lazy-loading: we no longer load 338MB at startup!
-
       final double? sLat = SettingsService.lastLat;
       final double? sLon = SettingsService.lastLon;
       final int? sTime = SettingsService.lastLocationTime;
@@ -67,7 +63,6 @@ class _HomeScreenState extends State<HomeScreen> {
       if (sLat != null && sLon != null && sTime != null) {
         int now = DateTime.now().millisecondsSinceEpoch;
         if (now - sTime < 86400000) {
-          // 24h in ms
           needsFetch = false;
         }
       }
@@ -75,7 +70,9 @@ class _HomeScreenState extends State<HomeScreen> {
       if (needsFetch) {
         try {
           Position position = await Geolocator.getCurrentPosition(
-            desiredAccuracy: LocationAccuracy.medium,
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.medium,
+            ),
           );
           await SettingsService.saveLocation(
             position.latitude,
@@ -93,157 +90,154 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           _mapCenter = storedLoc;
           _mapZoom = sZoom ?? 8.0;
-          _isZoomTooFar = (sZoom ?? 8.0) < _minZoomLimit;
           _isLoading = false;
         });
       } else {
-        // absolute fallback
         if (!mounted) return;
         setState(() {
           _mapCenter = LatLng(48.8566, 2.3522); // Paris fallback
           _mapZoom = 8.0;
           _isLoading = false;
-          _isZoomTooFar = true;
         });
       }
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = "Offline Initialization Error: ${e.toString()}";
+        _errorMessage = "Initialization Error: ${e.toString()}";
         _isLoading = false;
       });
     }
   }
 
-  double _getBufferFactor(double zoom) {
-    if (zoom >= 13.0) return 2.0;
-    if (zoom >= 10.0) return 1.5;
-    if (zoom >= 8.0) return 1.2;
-    return 1.1;
+  double _getMinImportance(double zoom) {
+    if (zoom < 5) return 85;
+    if (zoom < 7) return 65;
+    if (zoom < 9) return 45;
+    if (zoom < 11) return 25;
+    if (zoom < 13) return 10;
+    return 0;
   }
 
-  Future<void> _fetchTrailsInBounds(
-    LatLngBounds originalBounds,
-    double currentZoom,
-  ) async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  String _zoneKey(double south, double west, double latSize, double lonSize) {
+    int latIdx = (south / latSize).floor();
+    int lonIdx = (west / lonSize).floor();
+    return '${latIdx}_${lonIdx}_${latSize.toStringAsFixed(3)}_${lonSize.toStringAsFixed(3)}';
+  }
+
+  Future<void> _fetchZone(
+    double south,
+    double west,
+    double north,
+    double east,
+    String key, {
+    bool showLoading = false,
+  }) async {
+    if (_fetchedZoneKeys.contains(key)) return;
+    _fetchedZoneKeys.add(key);
+
+    if (showLoading && mounted) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
     try {
-      double factor = _getBufferFactor(currentZoom);
-      double latDelta = originalBounds.north - originalBounds.south;
-      double lonDelta = originalBounds.east - originalBounds.west;
-
-      double minLat = (originalBounds.south - latDelta * factor).clamp(
-        -90.0,
-        90.0,
-      );
-      double maxLat = (originalBounds.north + latDelta * factor).clamp(
-        -90.0,
-        90.0,
-      );
-      double minLon = (originalBounds.west - lonDelta * factor).clamp(
-        -180.0,
-        180.0,
-      );
-      double maxLon = (originalBounds.east + lonDelta * factor).clamp(
-        -180.0,
-        180.0,
-      );
-
-      LatLngBounds bufferedBounds = LatLngBounds(
-        LatLng(minLat, minLon),
-        LatLng(maxLat, maxLon),
+      var bounds = LatLngBounds(
+        LatLng(south.clamp(-90.0, 90.0), west.clamp(-180.0, 180.0)),
+        LatLng(north.clamp(-90.0, 90.0), east.clamp(-180.0, 180.0)),
       );
 
       List<Trail> trails;
       if (SettingsService.useCloudApi) {
-        trails = await CloudApiService.getTrailsInBounds(bufferedBounds);
+        trails = await CloudApiService.getTrailsInBounds(bounds);
       } else {
-        // Lazy-load if switching to offline mode
         await OfflineDataService.loadOfflineData();
-        trails = await OfflineDataService.getTrailsInBounds(bufferedBounds);
+        trails = await OfflineDataService.getTrailsInBounds(bounds);
       }
 
       if (!mounted) return;
       setState(() {
-        _lastFetchedBounds = bufferedBounds;
-        _trails = trails;
-        _isLoading = false;
+        for (var t in trails) {
+          _cachedTrails[t.id] = t;
+        }
+        if (showLoading) _isLoading = false;
       });
-      _updateStrictListTrails(originalBounds, trails);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = e.toString();
-        _isLoading = false;
-      });
+    } catch (_) {
+      if (showLoading && mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
-  void _onMapMoveEnd(LatLngBounds bounds, double zoom) async {
+  void _onMapMoveEnd(LatLngBounds bounds, double zoom) {
     if (!mounted) return;
+    _currentZoom = zoom;
 
-    final prefs = await SharedPreferences.getInstance();
-    prefs.setDouble('last_lat', bounds.center.latitude);
-    prefs.setDouble('last_lon', bounds.center.longitude);
-    prefs.setDouble('last_zoom', zoom);
-
-    if (zoom < _minZoomLimit) {
-      setState(() {
-        _isZoomTooFar = true;
-        _trails = [];
-        _listTrails = [];
-        _lastFetchedCenter = null;
-        _lastFetchedBounds = null;
-      });
-      return;
-    }
-
-    setState(() {
-      _isZoomTooFar = false;
+    // Save position fire-and-forget
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setDouble('last_lat', bounds.center.latitude);
+      prefs.setDouble('last_lon', bounds.center.longitude);
+      prefs.setDouble('last_zoom', zoom);
     });
 
-    bool needsUpdate = true;
-    if (_lastFetchedCenter != null && _lastFetchedBounds != null) {
-      double latMovement =
-          (bounds.center.latitude - _lastFetchedCenter!.latitude).abs();
-      double lonMovement =
-          (bounds.center.longitude - _lastFetchedCenter!.longitude).abs();
+    double latSize = (bounds.north - bounds.south).abs();
+    double lonSize = (bounds.east - bounds.west).abs();
+    if (latSize < 0.001 || lonSize < 0.001) return;
 
-      double currentLatBox = bounds.north - bounds.south;
-      double currentLonBox = bounds.east - bounds.west;
+    // Snap viewport to a grid aligned with viewport size
+    double gridSouth = (bounds.south / latSize).floorToDouble() * latSize;
+    double gridWest = (bounds.west / lonSize).floorToDouble() * lonSize;
 
-      double factor = _getBufferFactor(zoom);
+    // 9 zones: center + 8 surrounding, all fetched async
+    const offsets = [
+      [0, 0],
+      [-1, 0],
+      [1, 0],
+      [0, -1],
+      [0, 1],
+      [-1, -1],
+      [-1, 1],
+      [1, -1],
+      [1, 1],
+    ];
 
-      // Tolerate movement up to 40% of the buffered zone without rebuilding
-      if (latMovement < currentLatBox * factor * 0.40 &&
-          lonMovement < currentLonBox * factor * 0.40) {
-        needsUpdate = false;
-      }
-      
-      // Safety: if we have NO trails in memory, but we finished loading, force a refresh
-      if (_trails.isEmpty && !_isLoading) {
-          needsUpdate = true;
+    for (int i = 0; i < offsets.length; i++) {
+      double zSouth = gridSouth + offsets[i][0] * latSize;
+      double zWest = gridWest + offsets[i][1] * lonSize;
+      double zNorth = zSouth + latSize;
+      double zEast = zWest + lonSize;
+      String key = _zoneKey(zSouth, zWest, latSize, lonSize);
+
+      if (i == 0) {
+        // Center zone: fetch immediately
+        _fetchZone(
+          zSouth,
+          zWest,
+          zNorth,
+          zEast,
+          key,
+          showLoading: _cachedTrails.isEmpty,
+        );
+      } else {
+        // Stagger surrounding zones to avoid network overload
+        final s = zSouth, w = zWest, n = zNorth, e = zEast, k = key;
+        int delayMs = i <= 4 ? 500 : 1200;
+        Future.delayed(Duration(milliseconds: delayMs), () {
+          if (mounted) _fetchZone(s, w, n, e, k);
+        });
       }
     }
 
-    if (needsUpdate) {
-      _lastFetchedCenter = bounds.center;
-      _fetchTrailsInBounds(bounds, zoom);
-    } else {
-      _updateStrictListTrails(bounds, _trails);
-    }
+    _updateStrictListTrails(bounds);
   }
 
-  void _updateStrictListTrails(
-    LatLngBounds strictBounds,
-    List<Trail> activeTrails,
-  ) async {
+  void _updateStrictListTrails(LatLngBounds strictBounds) {
+    double minImportance = _getMinImportance(_currentZoom);
     List<Trail> strictList = [];
-    for (var trail in activeTrails) {
+
+    for (var trail in _cachedTrails.values) {
+      if (trail.importance < minImportance) continue;
       bool within = false;
       for (var segment in trail.coordinateSegments) {
         if (within) break;
@@ -256,6 +250,9 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       }
     }
+
+    strictList.sort((a, b) => b.importance.compareTo(a.importance));
+
     if (mounted) {
       setState(() {
         _listTrails = strictList;
@@ -263,27 +260,31 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _onTrailSelected(String id) {
+  // Called when tapping a trail on the MAP — just highlight, no pan
+  void _onMapTrailTap(String id) {
     if (!mounted) return;
-
-    // Auto-pan map if selecting a new trail
-    if (_selectedTrailId != id) {
-      try {
-        Trail t = _trails.firstWhere((t) => t.id == id);
-        if (t.coordinateSegments.isNotEmpty &&
-            t.coordinateSegments.first.isNotEmpty) {
-          _mapController.move(t.coordinateSegments.first.first, 12);
-        }
-      } catch (e) {
-        // ignore if not found
-      }
-    }
-
     setState(() {
       _selectedTrailId = _selectedTrailId == id ? null : id;
     });
   }
 
+  // Called when tapping a trail in the LIST — highlight AND center
+  void _onListTrailTap(String id) {
+    if (!mounted) return;
+    if (_selectedTrailId != id) {
+      try {
+        Trail? t = _cachedTrails[id];
+        if (t != null &&
+            t.coordinateSegments.isNotEmpty &&
+            t.coordinateSegments.first.isNotEmpty) {
+          _mapController.move(t.coordinateSegments.first.first, 12);
+        }
+      } catch (_) {}
+    }
+    setState(() {
+      _selectedTrailId = _selectedTrailId == id ? null : id;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -303,8 +304,9 @@ class _HomeScreenState extends State<HomeScreen> {
               );
               if (selected != null) {
                 setState(() {
-                  _currentIndex = 0; // Switch to Map Tab
+                  _currentIndex = 0;
                   _selectedTrailId = selected.id;
+                  _cachedTrails[selected.id] = selected;
                 });
 
                 if (selected.coordinateSegments.isNotEmpty &&
@@ -404,10 +406,10 @@ class _HomeScreenState extends State<HomeScreen> {
           CustomMapView(
             initialCenter: _mapCenter!,
             initialZoom: _mapZoom,
-            trails: _trails,
+            trails: _cachedTrails.values.toList(),
             mapController: _mapController,
             selectedTrailId: _selectedTrailId,
-            onTrailTap: _onTrailSelected,
+            onTrailTap: _onMapTrailTap,
             onMapMoveEnd: _onMapMoveEnd,
           ),
           DraggableScrollableSheet(
@@ -425,7 +427,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   trails: _listTrails,
                   scrollController: scrollController,
                   selectedTrailId: _selectedTrailId,
-                  onTrailTap: _onTrailSelected,
+                  onTrailTap: _onListTrailTap,
                 ),
               );
             },
@@ -433,7 +435,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       );
     } else {
-      // We are in Favorites tab, ensure data is loaded for favorites list
       content = Stack(
         children: [
           FutureBuilder<List<Trail>>(
@@ -447,7 +448,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 trails: favTrails,
                 hideUnloved: true,
                 selectedTrailId: _selectedTrailId,
-                onTrailTap: _onTrailSelected,
+                onTrailTap: _onListTrailTap,
               );
             },
           ),
@@ -458,30 +459,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Stack(
       children: [
         content,
-
-        if (_isZoomTooFar && _currentIndex == 0)
-          Align(
-            alignment: Alignment.topCenter,
-            child: Container(
-              margin: const EdgeInsets.only(top: 16),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.redAccent,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black26, blurRadius: 4),
-                ],
-              ),
-              child: const Text(
-                "Zoom in to see hiking trails",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          )
-        else if (_isLoading)
+        if (_isLoading)
           Align(
             alignment: Alignment.topCenter,
             child: Container(

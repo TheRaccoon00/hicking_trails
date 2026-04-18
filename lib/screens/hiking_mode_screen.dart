@@ -89,7 +89,7 @@ class _HikingModeScreenState extends State<HikingModeScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withValues(alpha: 0.9),
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10)],
               ),
@@ -136,8 +136,10 @@ class _HikingModeScreenState extends State<HikingModeScreen> {
                       ),
                       IconButton(
                         onPressed: () async {
+                          final navigator = Navigator.of(context);
                           if (await _showExitConfirmation()) {
-                            Navigator.of(context).pop();
+                            if (!mounted) return;
+                            navigator.pop();
                           }
                         },
                         icon: const CircleAvatar(
