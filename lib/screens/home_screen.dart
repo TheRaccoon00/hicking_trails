@@ -15,6 +15,7 @@ import '../widgets/custom_map_view.dart';
 import '../widgets/trail_list_view.dart';
 import 'trail_search_delegate.dart';
 import 'settings_screen.dart';
+import 'history_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -326,9 +327,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   context,
                   MaterialPageRoute(builder: (_) => const SettingsScreen()),
                 );
+              } else if (value == 'history') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const HistoryScreen()),
+                );
               }
             },
             itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'history',
+                child: Text(AppLocalizations.t('history')),
+              ),
               PopupMenuItem(
                 value: 'settings',
                 child: Text(AppLocalizations.t('settings')),

@@ -23,7 +23,12 @@ class CustomMapView extends StatefulWidget {
     this.selectedTrailId,
     this.onTrailTap,
     this.onMapMoveEnd,
+    this.userPath,
+    this.userPosition,
   });
+
+  final List<LatLng>? userPath;
+  final LatLng? userPosition;
 
   @override
   State<CustomMapView> createState() => _CustomMapViewState();
@@ -291,7 +296,35 @@ class _CustomMapViewState extends State<CustomMapView> {
               userAgentPackageName: 'com.otaviatrails.app',
             ),
             PolylineLayer(polylines: _polylines),
+            if (widget.userPath != null && widget.userPath!.length >= 2)
+              PolylineLayer(
+                polylines: [
+                  Polyline(
+                    points: widget.userPath!,
+                    strokeWidth: 4.0,
+                    color: Colors.blue[900]!,
+                  ),
+                ],
+              ),
             MarkerLayer(markers: _markers),
+            if (widget.userPosition != null)
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    point: widget.userPosition!,
+                    width: 20,
+                    height: 20,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.blueAccent,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
           ],
         ),
         if (_rotation != 0)

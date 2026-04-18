@@ -110,12 +110,15 @@ class TrailCard extends StatelessWidget {
     );
   }
 
+
   Widget _buildTitle() {
     if (!trail.name.contains('(')) {
-      return Text(trail.name, style: AppTheme.titleStyle);
+      return Text(trail.name, style: AppTheme.titleStyle, overflow: TextOverflow.ellipsis);
     }
+
     int pIdx = trail.name.indexOf('(');
     return RichText(
+      overflow: TextOverflow.ellipsis,
       text: TextSpan(
         text: trail.name.substring(0, pIdx),
         style: AppTheme.titleStyle.copyWith(fontSize: 16),

@@ -71,8 +71,9 @@ class OfflineDataService {
     return parsedTrails;
   }
 
-  static Future<List<Trail>> getTrailsInBounds(LatLngBounds bounds) async {
+  static Future<List<Trail>> getTrailsInBounds(LatLngBounds? bounds) async {
     if (!_isLoaded) return [];
+    if (bounds == null) return _cachedTrails;
 
     List<Trail> visibleTrails = [];
     int batchCounter = 0;
@@ -101,7 +102,15 @@ class OfflineDataService {
           await Future.delayed(Duration.zero);
       }
     }
-    
     return visibleTrails;
+  }
+
+  static Future<Trail?> getTrailById(String id) async {
+    try {
+      if (!_isLoaded) await loadOfflineData();
+      return _cachedTrails.firstWhere((t) => t.id == id);
+    } catch (e) {
+      return null;
+    }
   }
 }
